@@ -1,0 +1,972 @@
+---
+title: "heart_disease"
+output: html_document
+date: "2024-04-22"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+#loading data
+data = read.csv ("C:/Users/rvpes/OneDrive/Desktop/heart_disease_uci.csv")
+View (data)
+```
+
+```{r}
+#dimension of data
+dim (data)
+#statistical summary of data
+summary (data)
+```
+
+```{r}
+library ('dplyr')
+```
+
+```{r}
+#character dataset
+char_data = data %>% 
+  select_if (is.character)
+View (char_data)
+```
+
+```{r}
+#char to numeric
+
+col_names = c()
+for (x in names (char_data))
+{
+  uniq_val = char_data %>% 
+    select (ends_with(x))  %>% 
+    unique()
+  print (uniq_val)
+}
+
+```
+
+```{r}
+char_to_num = char_data %>%
+   mutate (sex = recode (sex, "Male" = 1, "Female" = 2), 
+           dataset = recode (dataset, "Cleveland" = 1, "Hungary" = 2, "Switzerland" = 3, "VA Long Beach" = 4),
+           cp = recode (cp, "typical angina" = 1, "asymptomatic" = 2, "non-anginal" = 3, "atypical angina" = 4),
+           restecg = recode (restecg, "lv hypertrophy" = 1, "normal" = 2, "st-t abnormality" = 3),
+           slope = recode (slope, "downsloping" = 1, "flat" = 2, "upsloping" = 3),
+           thal = recode (thal, "	fixed defect" = 1, "normal" = 2, "reversable defect" = 3))
+
+char_to_num
+```
+
+```{r}
+#missing values
+
+numeric_data = data %>% 
+  select_if (is.numeric)
+View (numeric_data)
+```
+
+```{r}
+new_data = cbind (char_to_num, numeric_data)
+new_data
+```
+
+```{r}
+#missing_values
+
+missing_data = new_data %>%
+  filter (!complete.cases(.))
+View (missing_data)
+```
+
+```{r}
+missing_col_names = c()
+for (x in names (new_data))
+{
+  col = new_data %>% 
+    select (ends_with(x))
+  if (sum (is.na (col)) > 0 ){
+    missing_col_names = cbind (missing_col_names, x)
+  }
+}
+print ("Columns with missing values:")
+print (missing_col_names)
+```
+
+```{r}
+#missing value imputation
+
+library('Hmisc')
+```
+
+```{r}
+
+mode_cols = c ("restecg", "slope", "thal", "ca")
+  
+missing_imputed = new_data
+
+for (col in mode_cols) 
+{
+  mode_value = names(sort(table(missing_imputed[[col]]), decreasing = TRUE))[1]  # Get the mode value of the column
+  missing_imputed[[col]][is.na(missing_imputed[[col]])] = mode_value  # Fill missing values with mode
+}
+
+missing_imputed
+```
+```{r}
+#changing classes
+
+missing_imputed$restecg = as.numeric(missing_imputed$restecg)
+missing_imputed$slope = as.numeric(missing_imputed$slope)
+missing_imputed$thal = as.numeric(missing_imputed$thal)
+missing_imputed$ca = as.numeric(missing_imputed$ca)
+
+missing_imputed
+```
+
+```{r}
+mean_cols = c("trestbps", "chol", "thalch", "oldpeak")
+
+missing_imputed$trestbps = round (impute (missing_imputed$trestbps, fun = mean))
+missing_imputed$chol = round (impute (missing_imputed$chol, fun = mean))
+missing_imputed$thalch = round (impute (missing_imputed$thalch, fun = mean))
+missing_imputed$oldpeak = round (impute (missing_imputed$oldpeak, fun = mean))
+
+missing_imputed
+
+```
+
+```{r}
+#outlier detection
+
+cor_data = cor (missing_imputed)
+cor_data
+```
+
+```{r}
+library ('ggplot2')
+
+```
+
+```{r}
+#boxplot - statistics based
+
+boxplot_outlier = function (x)
+{
+  q1 = quantile(x, 0.25)
+  q3 = quantile(x, 0.75)
+  iqr = q3 - q1
+  lower_bound = q1 - ( 1.5 * iqr )
+  upper_bound = q3 + ( 1.5 * iqr )
+  outliers = x [(x < lower_bound | x > upper_bound)]
+  return (outliers)
+}
+
+boxplot_outleirs = lapply (missing_imputed, boxplot_outlier)
+boxplot_outleirs
+
+```
+```{r}
+boxplot(missing_imputed,
+       col = "skyblue",
+       border = "blue",
+       main = "Boxplot of Your Data",
+       xlab = "X-axis Label",
+       ylab = "Y-axis Label",
+       range = 1.5,          
+       outline = TRUE,
+       pch = 19,
+       cex = 1.5
+)
+```
+
+```{r}
+ggplot() + geom_boxplot(data = missing_imputed, aes(x = sex, y = sex), outlier.colour = 'red')
+ggplot() + geom_boxplot(data = missing_imputed, aes(x = dataset, y = dataset), outlier.colour = 'red') 
+ggplot() + geom_boxplot(data = missing_imputed, aes(x = cp, y = cp), outlier.colour = 'red') 
+ggplot() + geom_boxplot(data = missing_imputed, aes(x = restecg, y = restecg), outlier.colour = 'red') 
+ggplot() + geom_boxplot(data = missing_imputed, aes(x = slope, y = slope), outlier.colour = 'red')
+ggplot() + geom_boxplot(data = missing_imputed, aes(x = thal, y = thal), outlier.colour = 'red') 
+ggplot() + geom_boxplot(data = missing_imputed, aes(x = id, y = id), outlier.colour = 'red') 
+ggplot() + geom_boxplot(data = missing_imputed, aes(x = age, y = age), outlier.colour = 'red') 
+ggplot() + geom_boxplot(data = missing_imputed, aes(x = trestbps, y = trestbps), outlier.colour = 'red') 
+ggplot() + geom_boxplot(data = missing_imputed, aes(x = chol, y = chol), outlier.colour = 'red') 
+ggplot() + geom_boxplot(data = missing_imputed, aes(x = thalch, y = thalch), outlier.colour = 'red') 
+ggplot() + geom_boxplot(data = missing_imputed, aes(x = oldpeak, y = oldpeak), outlier.colour = 'red') 
+ggplot() + geom_boxplot(data = missing_imputed, aes(x = ca, y = ca), outlier.colour = 'red') 
+ggplot() + geom_boxplot(data = missing_imputed, aes(x = num, y = num), outlier.colour = 'red') 
+```
+
+```{r}
+#mahalanobis distance - distance based
+
+mahalanobis_outliers <- function(data) {
+  # Compute mean and covariance matrix
+  mean_vec <- colMeans(data)
+  cov_mat <- cov(data)
+  
+  # Calculate Mahalanobis distance for each observation
+  mahalanobis_distances <- mahalanobis(data, center = mean_vec, cov = cov_mat)
+  
+  threshold <- quantile(mahalanobis_distances, 0.95)
+
+  # Identify outliers
+  outliers <- which(mahalanobis_distances > threshold)
+  
+  # Return indices of outliers
+  return(outliers)
+}
+
+mahalanobis_inliers <- function(data) {
+  # Compute mean and covariance matrix
+  mean_vec <- colMeans(data)
+  cov_mat <- cov(data)
+  
+  # Calculate Mahalanobis distance for each observation
+  mahalanobis_distances <- mahalanobis(data, center = mean_vec, cov = cov_mat)
+  
+  threshold <- quantile(mahalanobis_distances, 0.95)
+
+  # Identify outliers
+  inliers <- which(mahalanobis_distances <= threshold)
+  
+  # Return indices of outliers
+  return(inliers)
+}
+
+
+# Detect outliers using Mahalanobis distance
+outliers <- mahalanobis_outliers(missing_imputed)
+inliers <- mahalanobis_inliers(missing_imputed)
+
+mahalanobis_outliers_df <- missing_imputed[outliers, ]
+
+inliers_df <- missing_imputed[inliers, ]
+
+# Display outliers with respect to their columns
+print(mahalanobis_outliers_df)
+
+mahalanobis_count = 46
+
+```
+
+```{r}
+plot (missing_imputed$sex, col = 'green', main = "sex")
+points (outliers_df$sex, col = 'red')
+
+plot (missing_imputed$dataset, col = 'green', xlab = "Index", main = "dataset")
+points (outliers_df$dataset, col = 'red')
+
+plot (missing_imputed$cp, col = 'green', xlab = "Index", main = "cp")
+points (outliers_df$cp, col = 'red')
+
+plot (missing_imputed$restecg, col = 'green', xlab = "Index", main = "restecg")
+points (outliers_df$restecg, col = 'red')
+
+plot (missing_imputed$slope, col = 'green', xlab = "Index", main = "slope")
+points (outliers_df$slope, col = 'red')
+
+plot (missing_imputed$thal, col = 'green', xlab = "Index", main = "thal")
+points (outliers_df$thal, col = 'red')
+
+plot (missing_imputed$id, col = 'green', xlab = "Index", main = "id")
+points (outliers_df$id, col = 'red')
+
+plot (missing_imputed$age, col = 'green', xlab = "Index", main = "age")
+points (outliers_df$age, col = 'red')
+```
+```{r}
+plot (inliers_df, col = 'green')
+points (outliers_df, col = 'red')
+```
+```{r}
+#knn - clustering
+
+library (class)
+```
+
+```{r}
+data_normalized <- scale(missing_imputed)
+
+# Choose the value of k
+k <- 4  # You may adjust this value based on your data and requirements
+
+# Perform kNN outlier detection
+knn_outliers <- knn(data_normalized, data_normalized, cl = 1:nrow(data_normalized), k = k)
+
+# Identify outliers
+knn_outliers <- which(knn_outliers == 1:nrow(data_normalized))  # Outliers are points classified as their own class
+
+knn_outliers_df <- missing_imputed[outliers, ]
+
+# Print outliers with their respective columns
+print(knn_outliers_df)
+
+knn_count = 37
+```
+```{r}
+
+```
+```{r}
+
+```
+```{r}
+
+
+```
+```{r}
+data=missing_imputed
+data
+```
+
+```{r}
+library("dbscan")
+```
+```{r}
+
+# Perform outlier detection using DBSCAN
+dbscan_result <- dbscan(missing_imputed, eps = 0.5, MinPts = 15)
+
+# Get the indices of outliers (noise points)
+dbs_outliers <- which(dbscan_result$cluster == 0)
+#dbs_outliers
+dbs_outliers_df <- missing_imputed[dbs_outliers, ]
+
+# Print identified outliers
+print(dbs_outliers_df)
+print(dbscan_result)
+
+#dbs_count = 37
+
+
+
+```
+
+```{r}
+
+
+```
+
+```{r}
+
+```
+```{r}
+# Robust imputation using median and IQR
+median_val <- median(data$feature, na.rm = TRUE)
+iqr_val <- IQR(data$feature, na.rm = TRUE)
+lower_threshold <- median_val - 1.5 * iqr_val
+upper_threshold <- median_val + 1.5 * iqr_val
+
+data$feature[data$feature < lower_threshold] <- median_val
+data$feature[data$feature > upper_threshold] <- median_val
+
+```
+```{r}
+# Load required libraries
+library(dplyr)
+
+# Assuming your data frame is df
+
+# Function to impute outliers
+impute_outliers <- function(data, col) {
+  Q1 <- quantile(data[[col]], 0.25)
+  Q3 <- quantile(data[[col]], 0.75)
+  IQR <- Q3 - Q1
+  outlier_threshold <- 1.5 * IQR
+  outliers <- data[[col]][data[[col]] < (Q1 - outlier_threshold) | data[[col]] > (Q3 + outlier_threshold)]
+  
+  # Impute outliers with mean or median
+  data[[col]][which(data[[col]] %in% outliers)] <- mean(data[[col]]) # or median(data[[col]])
+  
+  # Alternatively, impute outliers with a specific value
+ outlier_value <- 9999 # Change as needed
+  data[[col]][which(data[[col]] %in% outliers)] <- outlier_value
+  
+  #Use a model to predict outlier values (for example, linear regression)
+   model <- lm(paste(col, "~ ."), data = data)
+ predicted_values <- predict(model, newdata = data[data[[col]] %in% outliers, ])
+   data[[col]][which(data[[col]] %in% outliers)] <- predicted_values
+  
+  return(data)
+}
+
+# Loop through all columns and impute outliers
+for (col in names(df)) {
+  df <- impute_outliers(df, col)
+}
+
+# Check for remaining outliers
+remaining_outliers <- df %>%
+  summarise(across(everything(), ~sum(. < (quantile(., 0.25) - 1.5 * IQR(.)) | . > (quantile(., 0.75) + 1.5 * IQR(.))), .names = "outliers_{.col}"))
+
+# If there are remaining outliers, you might want to iterate the process
+
+# Finally, evaluate the results
+summary(df)
+
+```
+
+```{r}
+# Load required libraries
+library(dplyr)
+
+# Function to impute outliers
+impute_outliers <- function(data, col) {
+  Q1 <- quantile(data[[col]], 0.25)
+  Q3 <- quantile(data[[col]], 0.75)
+  IQR <- Q3 - Q1
+  outlier_threshold <- 1.5 * IQR
+  outliers <- data[[col]][data[[col]] < (Q1 - outlier_threshold) | data[[col]] > (Q3 + outlier_threshold)]
+  
+  # Impute outliers with mean or median
+  data[[col]][which(data[[col]] %in% outliers)] <- mean(data[[col]]) # or median(data[[col]])
+  
+  # Alternatively, impute outliers with a specific value
+  # outlier_value <- 9999 # Change as needed
+  # data[[col]][which(data[[col]] %in% outliers)] <- outlier_value
+  
+  # Use a model to predict outlier values (for example, linear regression)
+  # model <- lm(paste(col, "~ ."), data = data)
+  # predicted_values <- predict(model, newdata = data[data[[col]] %in% outliers, ])
+  # data[[col]][which(data[[col]] %in% outliers)] <- predicted_values
+  
+  return(list(imputed_data = data, outliers = outliers))
+}
+
+# Loop through all columns and impute outliers
+imputed_outliers <- list()
+for (col in names(df)) {
+  imputed_outliers[[col]] <- impute_outliers(df, col)
+}
+
+# Print outliers after imputation
+for (col in names(df)) {
+  cat("Outliers in", col, "after imputation:\n")
+  print(imputed_outliers[[col]]$outliers)
+}
+
+```
+```{r}
+# Load required libraries
+library(dplyr)
+library(caret)
+
+# Assuming 'is_outlier' is the indicator for outliers in your dataset
+# Replace 'is_outlier' with the actual column name if it's different
+
+# Separate outliers and non-outliers
+outliers <- df[df$is_outlier == 1, ]
+non_outliers <- df[df$is_outlier == 0, ]
+
+# Sample non-outliers to match the number of outliers
+set.seed(123) # for reproducibility
+num_outliers <- nrow(outliers)
+non_outliers_sampled <- non_outliers[sample(nrow(non_outliers), num_outliers), ]
+
+# Combine outliers and sampled non-outliers for training
+train_data <- rbind(outliers, non_outliers_sampled)
+
+# Shuffle the training data
+train_data <- train_data[sample(nrow(train_data)), ]
+
+# Check if 'is_outlier' column is present in train_data
+if (!"is_outlier" %in% colnames(train_data)) {
+  train_data$is_outlier <- ifelse(train_data$is_outlier == 1, 1, 0)
+}
+
+# Ensure the 'is_outlier' column is numeric
+train_data$is_outlier <- as.numeric(train_data$is_outlier)
+
+# Train a logistic regression model
+tryCatch({
+  logistic_model <- glm(is_outlier ~ ., data = train_data, family = binomial)
+}, error = function(e) {
+  print(e)
+})
+
+# Predict outliers on the whole dataset
+predicted_outliers <- predict(logistic_model, newdata = df, type = "response")
+
+# Threshold for classification
+threshold <- 0.5
+predicted_labels <- ifelse(predicted_outliers > threshold, 1, 0)
+
+# Confusion matrix to evaluate model performance
+confusion_matrix <- table(df$is_outlier, predicted_labels)
+print(confusion_matrix)
+
+# Accuracy
+accuracy <- sum(diag(confusion_matrix)) / sum(confusion_matrix)
+print(paste("Accuracy:", accuracy))
+
+# Sensitivity (True Positive Rate)
+sensitivity <- confusion_matrix[2, 2] / sum(confusion_matrix[2, ])
+print(paste("Sensitivity:", sensitivity))
+
+# Specificity (True Negative Rate)
+specificity <- confusion_matrix[1, 1] / sum(confusion_matrix[1, ])
+print(paste("Specificity:", specificity))
+
+
+```
+```{r}
+# Load required libraries
+library(dplyr)
+library(caret)
+
+# Assuming 'is_outlier' is the indicator for outliers in your dataset
+# Replace 'is_outlier' with the actual column name if it's different
+
+# Separate outliers and non-outliers
+outliers <- df[df$is_outlier == 1, ]
+non_outliers <- df[df$is_outlier == 0, ]
+
+# Sample non-outliers to match the number of outliers
+set.seed(123) # for reproducibility
+num_outliers <- nrow(outliers)
+non_outliers_sampled <- non_outliers[sample(nrow(non_outliers), num_outliers), ]
+
+# Combine outliers and sampled non-outliers for training
+train_data <- rbind(outliers, non_outliers_sampled)
+
+# Shuffle the training data
+train_data <- train_data[sample(nrow(train_data)), ]
+
+# Check if 'is_outlier' column is present in train_data
+if (!"is_outlier" %in% colnames(train_data)) {
+  train_data$is_outlier <- ifelse(train_data$is_outlier == 1, 1, 0)
+}
+
+# Ensure the 'is_outlier' column is numeric
+train_data$is_outlier <- as.numeric(train_data$is_outlier)
+
+# Train a logistic regression model
+logistic_model <- try(glm(is_outlier ~ ., data = train_data, family = binomial))
+
+# Check if model creation was successful
+if (inherits(logistic_model, "try-error")) {
+  print("Error occurred while creating the logistic regression model.")
+} else {
+  # Predict outliers on the whole dataset
+  predicted_outliers <- predict(logistic_model, newdata = df, type = "response")
+  
+  # Threshold for classification
+  threshold <- 0.5
+  predicted_labels <- ifelse(predicted_outliers > threshold, 1, 0)
+  
+  # Confusion matrix to evaluate model performance
+  confusion_matrix <- table(df$is_outlier, predicted_labels)
+  print(confusion_matrix)
+  
+  # Accuracy
+  accuracy <- sum(diag(confusion_matrix)) / sum(confusion_matrix)
+  print(paste("Accuracy:", accuracy))
+  
+  # Sensitivity (True Positive Rate)
+  sensitivity <- confusion_matrix[2, 2] / sum(confusion_matrix[2, ])
+  print(paste("Sensitivity:", sensitivity))
+  
+  # Specificity (True Negative Rate)
+  specificity <- confusion_matrix[1, 1] / sum(confusion_matrix[1, ])
+  print(paste("Specificity:", specificity))
+}
+
+```
+```{r}
+# Install and load the 'mice' package
+
+
+# Load your dataset
+# Replace 'your_dataset.csv' with the path to your dataset file
+data <- missing_imputed
+
+# Perform Multiple Imputation by Chained Equations (MICE)
+# Specify the number of imputations (e.g., 5)
+# Set 'method' parameter based on the type of variables (e.g., "pmm" for continuous variables)
+# See 'help(mice)' for more options and details
+imputed_data <- mice(data, m = 5, method = "outlier")
+imputed_data
+
+# Obtain the imputed datasets
+# You can access each imputed dataset using the 'complete()' function
+imputed_datasets <- complete(imputed_data)
+imputed_datasets
+
+# Perform analyses on each imputed dataset
+# For example, you can perform statistical analyses or build predictive models on the imputed datasets
+
+# Pool the imputed datasets to obtain final imputed values
+# The 'pool()' function combines the results from multiple imputations
+#pooled_data <- pool(imputed_data)
+
+# Extract the final imputed dataset
+#final_imputed_data <- as.data.frame(pooled_data)
+
+# Save or further analyze the final imputed dataset
+# For example, you can save it to a new CSV file
+#write.csv(final_imputed_data, "final_imputed_dataset.csv", row.names = FALSE)
+```
+
+```{r}
+#install.packages("mice")
+library(mice)
+```
+
+```{r}
+# Load necessary library
+library(ggplot2)
+
+# Select only the numerical columns for PCA
+numerical_data <- missing_imputed[, c("age", "trestbps", "chol", "thalch", "oldpeak")]
+
+# Standardize the numerical data
+standardized_data <- scale(numerical_data)
+
+# Perform PCA
+pca_result <- prcomp(standardized_data, scale. = TRUE)
+
+# Get summary of PCA
+summary(pca_result)
+
+# Visualize the PCA results
+ggplot(as.data.frame(pca_result$x), aes(PC1, PC2)) +
+  geom_point() +
+  xlab("Principal Component 1") +
+  ylab("Principal Component 2") +
+  ggtitle("PCA Plot")
+
+# Biplot to visualize both data points and loadings
+biplot(pca_result, scale = 0)
+
+```
+
+```{r}
+library('fpc')
+
+```
+
+```{r}
+optics_result <- dbscan(missing_imputed, eps = 0.5, MinPts = 4)
+
+# Extract core points (not outliers)
+core_points <- missing_imputed[optics_result$cluster != 0, ]
+
+# Perform outlier detection on core points using LOF
+lof_result <- lof(core_points, k = 3)  # Adjust k as needed
+
+# Identify outliers based on LOF score
+outliers <- which(lof_result$lof > 1)  # LOF > 1 indicates an outlier
+
+# Print identified outliers
+print("Identified outliers:")
+print(core_points[outliers, ])
+```
+```{r}
+
+
+# Load necessary libraries
+library(dplyr)
+library(caret)
+library(magrittr)  # For the pipe operator %>%
+
+# Load the dataset
+
+
+# Preprocess the data
+# You may have already handled missing values, converted categorical variables, and scaled features
+
+# Train an outlier detection model
+# Here, we'll use Isolation Forest as an example
+# Load the required library
+library(randomForest)
+
+# Set seed for reproducibility
+set.seed(123)
+
+# Train the Isolation Forest model
+outlier_model <- randomForest(num ~ ., data = missing_imputed, method = "iForest")
+
+# Prepare new input data
+# Replace `new_input` with the new input data point(s) in the same format as the training data
+new_input <- missing_imputed[1, ]  # Example: Using the first row of the dataset as new input
+
+# Make predictions on new input data
+# Use "scores" as the prediction type for outlier detection models
+new_predictions <- predict(outlier_model, newdata = new_input, type = "scores")
+
+
+# Set a threshold for outlier detection
+threshold <- 0  # Adjust as needed
+
+# Identify whether the new input data point(s) is an outlier or not
+is_outlier <- ifelse(new_predictions > threshold, TRUE, FALSE)
+
+# Print the prediction result
+if (is_outlier) {
+  print("The input data point is predicted to be an outlier.")
+} else {
+  print("The input data point is predicted to be not an outlier.")
+}
+
+
+```
+```{r}
+# Load necessary libraries
+library(dplyr)
+library(caret)
+library(e1071)  # For One-Class SVM
+library(magrittr)  # For the pipe operator %>%
+
+# Load the dataset
+# Assuming `missing_imputed` is already loaded
+
+# Preprocess the data
+# You may have already handled missing values, converted categorical variables, and scaled features
+
+# Train an outlier detection model
+# Here, we'll use One-Class SVM as an example
+
+# Set seed for reproducibility
+set.seed(123)
+
+# Train the One-Class SVM model
+svm_model <- svm(num ~ ., data = missing_imputed, kernel = "radial", nu = 0.1)
+
+# Prepare new input data
+# Replace `new_input` with the new input data point(s) in the same format as the training data
+new_input <- missing_imputed[1, ]  # Example: Using the first row of the dataset as new input
+
+# Make predictions on new input data
+new_predictions <- predict(svm_model, newdata = new_input, decision.values = TRUE)
+
+# Set a threshold for outlier detection
+threshold <- 0  # Adjust as needed
+
+# Identify whether the new input data point(s) is an outlier or not
+is_outlier <- ifelse(new_predictions < threshold, TRUE, FALSE)
+
+# Print the prediction result
+if (is_outlier) {
+  print("The input data point is predicted to be an outlier.")
+} else {
+  print("The input data point is predicted to be not an outlier.")
+}
+
+```
+```{r}
+# Load necessary libraries
+library(dplyr)
+library(e1071)  # For One-Class SVM
+library(magrittr)  # For the pipe operator %>%
+
+# Load the dataset
+# Assuming `missing_imputed` is already loaded
+
+# Preprocess the data
+# You may have already handled missing values, converted categorical variables, and scaled features
+
+# Function to prompt user for input
+get_user_input <- function() {
+  input <- data.frame()
+  col_names <- colnames(missing_imputed)
+  for (col in col_names) {
+    value <- readline(prompt = paste("Enter value for", col, ": "))
+    input[[col]] <- value
+  }
+  return(input)
+}
+
+# Get input from the user
+user_input <- get_user_input()
+
+# Add the user input to the dataset
+if (nrow(missing_imputed) == 0) {
+  new_data <- user_input
+} else {
+  new_data <- rbind(missing_imputed, user_input)
+}
+
+# Train an outlier detection model
+# Here, we'll use One-Class SVM as an example
+
+# Set seed for reproducibility
+set.seed(123)
+
+# Train the One-Class SVM model
+svm_model <- svm(num ~ ., data = new_data, kernel = "radial", nu = 0.1)
+
+# Prepare new input data
+# Use the last row (user input) as the new input data
+new_input <- new_data[nrow(new_data), ]
+
+# Make predictions on new input data
+new_predictions <- predict(svm_model, newdata = new_input, decision.values = TRUE)
+
+# Set a threshold for outlier detection
+threshold <- 0  # Adjust as needed
+
+# Identify whether the new input data point(s) is an outlier or not
+is_outlier <- ifelse(new_predictions < threshold, TRUE, FALSE)
+
+# Print the prediction result
+if (is_outlier) {
+  print("The input data point is predicted to be an outlier.")
+} else {
+  print("The input data point is predicted to be not an outlier.")
+}
+1
+```
+```{r}
+
+```
+
+```{r}
+# Load necessary libraries
+library(dplyr)
+library(randomForest)
+library(ROCR)  # For ROC curve calculation
+library(pROC)  # For ROC AUC calculation
+
+# Assuming `missing_imputed` is the dataset containing the preprocessed data
+
+# Split the data into training and test sets (if labeled data is available)
+set.seed(123)  # Set seed for reproducibility
+train_indices <- sample(1:nrow(missing_imputed), 0.7 * nrow(missing_imputed))  # 70% for training
+train_data <- missing_imputed[train_indices, ]
+test_data <- missing_imputed[-train_indices, ]
+
+# Train an outlier detection model: Isolation Forest
+if_model <- randomForest(num ~ ., data = train_data, method = "iForest")
+
+# Define IQR-based outlier detection function
+detect_outliers_iqr <- function(x) {
+  q1 <- quantile(x, 0.25)
+  q3 <- quantile(x, 0.75)
+  iqr <- q3 - q1
+  lower_bound <- q1 - 1.5 * iqr
+  upper_bound <- q3 + 1.5 * iqr
+  outliers <- x < lower_bound | x > upper_bound
+  return(outliers)
+}
+
+# Define kNN-based outlier detection function
+detect_outliers_knn <- function(data, k) {
+  dist_matrix <- as.matrix(dist(data))  # Compute distance matrix
+  kth_distances <- apply(dist_matrix, 1, function(x) sort(x)[k+1])  # Find kth nearest distances
+  outlier_scores <- kth_distances^2  # Use square of kth nearest distances as outlier scores
+  return(outlier_scores)
+}
+
+# Detect outliers using Isolation Forest
+if_predictions <- predict(if_model, newdata = test_data, type = "scores")  # Use "vote" instead of "scores"
+
+# Detect outliers using IQR
+iqr_outliers <- detect_outliers_iqr(test_data$num)
+
+# Detect outliers using kNN
+knn_outlier_scores <- detect_outliers_knn(as.matrix(test_data[, -1]), k = 5)  # Using 5 nearest neighbors
+
+# Continue with the evaluation and comparison steps...
+
+
+# Evaluate Isolation Forest model
+if_threshold <- 0  # Threshold for outlier detection
+if_predicted_labels <- ifelse(if_predictions > if_threshold, TRUE, FALSE)
+
+# Evaluate IQR-based outlier detection
+iqr_predicted_labels <- iqr_outliers
+
+# Evaluate kNN-based outlier detection
+knn_threshold <- quantile(knn_outlier_scores, 0.9)  # Threshold based on the 90th percentile of outlier scores
+knn_predicted_labels <- knn_outlier_scores > knn_threshold
+
+# Calculate evaluation metrics for Isolation Forest
+if_accuracy <- sum(if_predicted_labels == test_data$num) / length(test_data$num)
+if_precision <- sum(if_predicted_labels & test_data$num) / sum(if_predicted_labels)
+if_recall <- sum(if_predicted_labels & test_data$num) / sum(test_data$num)
+if_f1_score <- 2 * (if_precision * if_recall) / (if_precision + if_recall)
+
+# Calculate evaluation metrics for IQR-based outlier detection
+iqr_accuracy <- sum(iqr_predicted_labels == test_data$num) / length(test_data$num)
+iqr_precision <- sum(iqr_predicted_labels & test_data$num) / sum(iqr_predicted_labels)
+iqr_recall <- sum(iqr_predicted_labels & test_data$num) / sum(test_data$num)
+iqr_f1_score <- 2 * (iqr_precision * iqr_recall) / (iqr_precision + iqr_recall)
+
+# Calculate evaluation metrics for kNN-based outlier detection
+knn_accuracy <- sum(knn_predicted_labels == test_data$num) / length(test_data$num)
+knn_precision <- sum(knn_predicted_labels & test_data$num) / sum(knn_predicted_labels)
+knn_recall <- sum(knn_predicted_labels & test_data$num) / sum(test_data$num)
+knn_f1_score <- 2 * (knn_precision * knn_recall) / (knn_precision + knn_recall)
+
+# Print evaluation metrics
+cat("Isolation Forest Evaluation Metrics:\n")
+cat("Accuracy:", if_accuracy, "\n")
+cat("Precision:", if_precision, "\n")
+cat("Recall:", if_recall, "\n")
+cat("F1-score:", if_f1_score, "\n\n")
+
+cat("IQR-based Outlier Detection Evaluation Metrics:\n")
+cat("Accuracy:", iqr_accuracy, "\n")
+cat("Precision:", iqr_precision, "\n")
+cat("Recall:", iqr_recall, "\n")
+cat("F1-score:", iqr_f1_score, "\n\n")
+
+cat("kNN-based Outlier Detection Evaluation Metrics:\n")
+cat("Accuracy:", knn_accuracy, "\n")
+cat("Precision:", knn_precision, "\n")
+cat("Recall:", knn_recall, "\n")
+cat("F1-score:", knn_f1_score, "\n")
+
+```
+```{r}
+# Plot identified outliers for Isolation Forest
+plot_outliers <- function(data, outliers, title) {
+  plot(missing_imputed$num, type = "l", col = "blue", main = title, xlab = "Index", ylab = "Value")
+  points(which(outliers), missing_imputed$num[outliers], col = "red", pch = 20)
+  legend("topright", legend = c("Normal", "Outlier"), col = c("blue", "red"), pch = c(1, 20))
+}
+
+# Plot identified outliers for Isolation Forest
+#plot_outliers(missing_imputed, if_predictions > 0, "Identified Outliers - Isolation Forest")
+
+# Plot identified outliers for IQR-based outlier detection
+plot_outliers(missing_imputed, iqr_outliers, "Identified Outliers - IQR")
+
+# Plot identified outliers for kNN-based outlier detection
+plot_outliers(missing_imputed, knn_outlier_df > quantile(knn_outlier_scores, 0.95), "Identified Outliers - kNN")
+
+```
+
+```{r}
+library(dplyr)
+library(magrittr)
+library(mclust)
+library(pracma)
+
+# Assuming ground_truth_labels is a vector of numeric or logical values representing the true labels
+
+# Check if ground_truth_labels is numeric or logical
+if (!is.numeric(ground_truth_labels) && !is.logical(ground_truth_labels)) {
+  stop("ground_truth_labels must be numeric or logical.")
+}
+
+# Calculate accuracy for each method
+accuracy_boxplot <- mean(boxplot_outliers == ground_truth_labels, na.rm = TRUE)
+accuracy_knn <- mean(knn_outliers_df == ground_truth_labels, na.rm = TRUE)
+accuracy_mahalanobis <- mean(mahalanobis_outliers_df == ground_truth_labels, na.rm = TRUE)
+
+# Print accuracy
+print(paste("Accuracy - Box Plot:", accuracy_boxplot*100))
+print(paste("Accuracy - KNN:", accuracy_knn*100))
+print(paste("Accuracy - Mahalanobis:", accuracy_mahalanobis*100))
+
+
+
+```
+```{r}
+str(boxplot_outliers)
+str(ground_truth_labels)
+
+
+```
+
